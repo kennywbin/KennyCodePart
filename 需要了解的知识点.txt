@@ -1,0 +1,34 @@
+[Attribute]
+
+[IOC]
+
+控制反转 依赖注入
+
+MVC
+
+dynamic
+
+Java Python Object-c
+
+function  Action
+
+线程 sync await
+
+Expression
+
+Saas
+
+Invoke
+
+WebApi
+
+Azure
+
+Webservise
+
+大数据 机器学习 AI
+
+持续继承 平滑发布
+
+设计模式 前段技术
+
