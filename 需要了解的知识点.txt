@@ -2,7 +2,7 @@
 
 [IOC]
 
-���Ʒ�ת ����ע��
+控制反转 依赖注入
 
 MVC
 
@@ -12,7 +12,7 @@ Java Python Object-c
 
 function  Action
 
-�߳� sync await
+线程 sync await
 
 Expression
 
@@ -26,9 +26,10 @@ Azure
 
 Webservise
 
-������ ����ѧϰ AI
+大数据 机器学习 AI
 
-�����̳� ƽ������
+持续继承 平滑发布
 
-���ģʽ ǰ�μ���
+设计模式 前段技术
 
+需要utf8才可以在手机端查看
