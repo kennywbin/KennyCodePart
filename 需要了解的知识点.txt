@@ -8,7 +8,11 @@ MVC
 
 dynamic
 
-Java Python Object-c
+Ruby 
+
+Java （JBOSS Enterprise，Application Server, JBoss Application Server, JBoss Enterprise Web Server/ Tomat)
+
+Python Object-c
 
 function  Action
 
@@ -30,6 +34,15 @@ Webservise
 
 持续继承 平滑发布
 
-设计模式 前段技术
+设计模式 前端技术
 
-需要utf8才可以在手机端查看
+Node.js
+
+数据库：MongoDB MySql PostgreSql
+
+云服务器：
+1.Redhat 的 OpenShift ，可以一直免费
+2.Heroku，也可以一直免费
+亚马逊的EC2
+
+
