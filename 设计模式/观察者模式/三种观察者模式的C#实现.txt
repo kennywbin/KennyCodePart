@@ -1,0 +1,292 @@
+﻿三种观察者模式的C#实现
+系列主题：基于消息的软件架构模型演变
+ 
+
+说起观察者模式，估计在园子里能搜出一堆来。所以写这篇博客的目的有两点:
+
+观察者模式是写松耦合代码的必备模式，重要性不言而喻，抛开代码层面，许多组件都采用了Publish-Subscribe模式，所以我想按照自己的理解重新设计一个使用场景并把观察者模式灵活使用在其中
+我想把C#中实现观察者模式的三个方案做一个总结，目前还没看到这样的总结
+现在我们来假设这样的一个场景，并利用观察者模式实现需求：
+
+场景：未来智能家居进入了每家每户，每个家居都留有API供客户进行自定义整合，所以第一个智能闹钟(smartClock)先登场,厂家为此闹钟提供了一组API,当设置一个闹铃时间后该闹钟会在此时做出通知，我们的智能牛奶加热器，面包烘烤机，挤牙膏设备都要订阅此闹钟闹铃消息，自动为主人准备好牛奶，面包，牙膏等。
+
+这个场景是很典型的观察者模式，智能闹钟的闹铃是一个主题(subject)，牛奶加热器，面包烘烤机，挤牙膏设备是观察者(observer)，观察者只需要订阅这个主题即可实现松耦合的编码模型，让我们通过三种方案逐一实现此需求。
+
+一、利用.net的Event模型来实现
+
+.net中的Event模型是一种典型的观察者模型，在.net出身之后被大量应用在了代码当中，我们看事件模型如何在此种场景下使用,
+
+首先介绍下智能闹钟，厂家提供了一组很简单的API
+
+1
+2
+3
+4
+5
+public void SetAlarmTime(TimeSpan timeSpan)
+{
+    _alarmTime = _now().Add(timeSpan);
+    RunBackgourndRunner(_now, _alarmTime);
+}
+SetAlarmTime(TimeSpan timeSpan)用来定时，当用户设置好一个时间后，闹钟会在后台跑一个类似于while(true)的循环对比时间，当闹铃时间到了后要发出一个通知事件出来
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+protected void RunInBackgournd(Func<DateTime> now,DateTime? alarmTime )
+{
+    if (alarmTime.HasValue)
+    {
+        var cancelToken = new CancellationTokenSource();
+        var task = new Task(() =>
+        {
+            while (!cancelToken.IsCancellationRequested)
+            {
+                if (now.AreEquals(alarmTime.Value))
+                {
+                    //闹铃时间到了
+                    ItIsTimeToAlarm();
+                    cancelToken.Cancel();
+                }
+                cancelToken.Token.WaitHandle.WaitOne(TimeSpan.FromSeconds(2));
+            }
+        }, cancelToken.Token, TaskCreationOptions.LongRunning);
+        task.Start();
+    }
+}
+其他代码并不重要，重点在当闹铃时间到了后要执行ItIsTimeToAlarm(); 我们在这里发出事件以便通知观察者，.net中实现event模型有三要素，
+
+1.为主题(subject)要定义一个event, public event Action<Clock, AlarmEventArgs> Alarm;
+
+2.为主题(subject)的信息定义一个EventArgs，即AlarmEventArgs,这里面包含了事件所有的信息
+
+3.主题(subject)通过以下方式发出事件
+
+1
+2
+var args = new AlarmEventArgs(_alarmTime.Value, 0.92m);
+OnAlarmEvent(args);
+OnAlarmEvent方法的定义
+
+1
+2
+3
+4
+5
+public virtual void OnAlarm(AlarmEventArgs e)
+{
+    if(Alarm!=null)
+        Alarm(this,e);
+}
+这里要注意命名规范,事件内容-AlarmEventArgs，事件-Alarm(动词,例如KeyPress)，触发事件的方法 void OnAlarm(),这些命名都要符合事件模型的命名规范。 
+智能闹钟(SmartClock)已经实现完毕，我们在牛奶加热器(MilkSchedule)中订阅这个Alarm消息：
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+public void PrepareMilkInTheMorning()
+{
+    _clock.Alarm += (clock, args) =>
+    {
+        Message ="Prepraring milk for the owner, The time is {0}, the electric quantity is {1}%".FormatWith(args.AlarmTime, args.ElectricQuantity*100);
+ 
+        Console.WriteLine(Message);
+    };
+ 
+    _clock.SetAlarmTime(TimeSpan.FromSeconds(2));
+ 
+}
+在面包烘烤机中同样可以用_clock.Alarm+=(clock,args)=>{//it is time to roast bread}订阅闹铃消息。
+
+至此，event模型介绍完毕，实现过程还是有点繁琐的，并且事件模型使用不当会有memory leak的问题，当观察者(obsever)订阅了一个生命周期较长的主题(该主题生命周期长于观察者),该观察者将不会被垃圾回收(因为还有引用指向主题)，详见Understanding and Avoiding Memory Leaks with Event Handlers and Event Aggregators,开发者需要显示退订该主题(-=)。
+
+园子里老A也写过一篇如何利用弱引用解决该问题的博客：如何解决事件导致的Memory Leak问题：Weak Event Handlers。
+
+二、利用.net中IObservable<out T>和IObserver<in T>实现观察者模式
+
+IObservable<out T> 顾名思义-可观察的事物，即主题(subject),Observer很明显就是观察者了。
+
+在我们的场景中智能闹钟是IObservable,该接口只定义了一个方法IDisposable Subscribe(IObserver<T> observer);该方法命名让人有点犯晕,Subscribe即订阅的意思，不同于之前提到过的观察者(observer)订阅主题(subject)。在这里是主题(subject)来订阅观察者(observer)，其实这里也说得通，因为在该模型下，主题(subject)维护了一个观察者(observer)列表，所以有主题订阅观察者之说，我们来看闹钟的IDisposable Subscribe(IObserver<T> observer)实现：
+
+1
+2
+3
+4
+5
+6
+7
+8
+public IDisposable Subscribe(IObserver<AlarmData> observer)
+{
+    if (!_observers.Contains(observer))
+    {
+        _observers.Add(observer);
+    }
+    return new DisposedAction(() => _observers.Remove(observer));
+}
+可以看到这里维护了一个观察者列表_observers,闹钟在到点了之后会遍历所有观察者列表将消息逐一通知给观察者
+
+1
+2
+3
+4
+5
+public override void ItIsTimeToAlarm()
+{
+    var alarm = new AlarmData(_alarmTime.Value, 0.92m);
+    _observers.ForEach(o=>o.OnNext(alarm));
+}
+很明显，观察者有个OnNext方法，方法签名是一个AlarmData,代表了要通知的消息数据,接下来看看牛奶加热器的实现,牛奶加热器作为观察者(observer)当然要实现IObserver接口
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+    public  void Subscribe(TimeSpan timeSpan)
+{
+    _unSubscriber = _clock.Subscribe(this);
+    _clock.SetAlarmTime(timeSpan);
+}
+ 
+public  void Unsubscribe()
+{
+    _unSubscriber.Dispose();
+}
+ 
+public void OnNext(AlarmData value)
+{
+    Message ="Prepraring milk for the owner, The time is {0}, the electric quantity is {1}%".FormatWith(value.AlarmTime, value.ElectricQuantity * 100);
+    Console.WriteLine(Message);
+}
+除此之外为了方便使用面包烘烤器，我们还加了两个方法Subscribe()和Unsubscribe(),看调用过程
+
+1
+2
+3
+var milkSchedule = new MilkSchedule();
+//Act
+milkSchedule.Subscribe(TimeSpan.FromSeconds(12));
+三、Action函数式方案
+
+在介绍该方案之前我需要说明，该方案并不是一个观察者模型，但是它却可以实现同样的功能，并且使用起来更加简练，也是我最喜欢的一种用法。
+
+这种方案中，智能闹钟(smartClock)提供的API需要设计成这样：
+
+1
+2
+3
+4
+5
+6
+  public void SetAlarmTime(TimeSpan timeSpan,Action<AlarmData> alarmAction)
+{
+    _alarmTime = _now().Add(timeSpan);
+    _alarmAction = alarmAction;
+    RunBackgourndRunner(_now, _alarmTime);
+}
+方法签名中要接受一个Action<T>,闹钟在到点后直接执行该Action<T>即可:
+
+1
+2
+3
+4
+5
+6
+7
+8
+   public override void ItIsTimeToAlarm()
+{
+    if (_alarmAction != null)
+    {
+        var alarmData = new AlarmData(_alarmTime.Value, 0.92m);
+        _alarmAction(alarmData);    
+    }
+}
+牛奶加热器中使用这种API也很简单：
+
+1
+2
+3
+4
+_clock.SetAlarmTime(TimeSpan.FromSeconds(1), (data) =>
+{
+    Message ="Prepraring milk for the owner, The time is {0}, the electric quantity is {1}%".FormatWith(data.AlarmTime, data.ElectricQuantity * 100);
+});
+在实际使用过程中我会把这种API设计成fluent api，调用起来代码更清晰：
+
+智能闹钟(smartClock)中的API:
+
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+public Clock SetAlarmTime(TimeSpan timeSpan)
+    {
+        _alarmTime = _now().Add(timeSpan);
+        RunBackgourndRunner(_now, _alarmTime);
+        return this;
+    }
+ 
+    public void OnAlarm(Action<AlarmData> alarmAction)
+    {
+        _alarmAction = alarmAction;
+    }
+牛奶加热器中进行调用：
+
+1
+2
+3
+4
+5
+_clock.SetAlarmTime(TimeSpan.FromSeconds(2))
+.OnAlarm((data) =>
+          {
+              Message ="Prepraring milk for the owner, The time is {0}, the electric quantity is {1}%".FormatWith(data.AlarmTime, data.ElectricQuantity * 100);
+          });
+显然改进后的写法语义更好：闹钟.设置闹铃时间().当报警时(()=>{执行以下功能})

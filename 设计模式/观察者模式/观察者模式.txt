@@ -1,4 +1,4 @@
-观察者Observer模式：
+﻿观察者Observer模式：
 主题，发布者 Subject 观察者，接收者 Observer
 
 定义了对象之间的一对多依赖，这样一来，当一个对象改变状态时，它的所有依赖者都会收到通知并自动更新。
@@ -26,6 +26,99 @@
 
 推的方式更正确一些。
 
+C#设计模式——观察者模式(Observer Pattern)
+一、概述
+在软件设计工作中会存在对象之间的依赖关系，当某一对象发生变化时，所有依赖它的对象都需要得到通知。如果设计的不好，很容易造成对象之间的耦合度太高，难以应对变化。使用观察者模式可以降低对象之间的依赖，以松耦合的方式实现这一目标。
+二、观察者模式
+观察者模式定义对象间的一种一对多的依赖关系，当一个对象的状态发生改变时，所有依赖于它的对象都得到通知并自动更新。其结构图如下：
 
+
+
+Subject知道它的所有观察者并提供了观察者注册和删除订阅的接口。
+Observer为那些在目标发生改变时需获得通知的对象定义一个更新接口。
+ConcreteSubject实现Subject接口，当改变状态时向依赖于它的ConcreteObserver发送通知。
+ConcreteObserver实现Observer的更新接口，使得自身能根据ConcreteSubject状态的不同而做出相应的改变。
+观察者模式分为推模式和拉模式两种。推模式是当有通知时，把依赖对象的信息以参数的形式传递给所有观察者，而拉模式通知方法本身并不带任何的参数，是由观察者自己到依赖对象那里取回相关信息。在推模式下，所有观察者都通过参数传递的方式得到依赖对象的全部信息，与依赖对象之间的耦合较低，但不能实现“按需所取”所需要信息的。而拉模式仅仅是通知观察者，至于要不要提取依赖对象的信息则是观察者自己的事情，这么一来就实现“按需所取”，但往往要在ConcreteObserver里保存一个ConcreteSubject的引用，与ConcreteSubject的耦合也加强了。
+观察者模式的Subject一般需要提供观察者注册和删除订阅的接口，但在.NET中，往往可以利用事件和委托的特性来实现观察者模式，这是一种更为优雅的方案。
+三、示例
+我们现在利用事件实现观察者模式。我们设计一个信用卡消费的简单例子，在消费的同时需要对用户账户进行扣款，同时对用户进行短信提醒。
+首先定义信用卡类，当消费金额变动时会触发Notify方法通知该对象的所有观察者。
+
+
+复制代码
+ 1     public class CreditCard : EventArgs
+ 2     {
+ 3         private float _spendAmount;
+ 4         public event EventHandler<CreditCard> SpendMoney;
+ 5 
+ 6         public float SpendAmount
+ 7         {
+ 8             get
+ 9             {
+10                 return _spendAmount;
+11             }
+12             set
+13             {
+14                 _spendAmount = value;
+15                 Notify();
+16             }
+17         }
+18 
+19         private void Notify()
+20         {
+21             if (SpendMoney != null)
+22             {
+23                 SpendMoney(this, this);
+24             }
+25         }
+26     }
+复制代码
+接着定义Observer接口，并使用户帐户类和短信提醒类实现这个接口，其中这两个ConcreteObserver类的Update方法签名必须与CreditCard中的事件SendMoney一致，否则就无法注册到CreditCard。
+
+
+复制代码
+ 1    public interface IObserver<T>
+ 2     {
+ 3         void Update(Object sender, T e);
+ 4     }
+ 5 
+ 6     public class SMSNotify : IObserver<CreditCard>
+ 7     {
+ 8         public void Update(Object sender, CreditCard e)
+ 9         {
+10             Console.WriteLine("Sms notify.Spend {0}", e.SpendAmount);
+11         }
+12     }
+13 
+14     public class Account : IObserver<CreditCard>
+15     {
+16         private float _accountAmount;
+17 
+18         public Account(float accountAmount)
+19         {
+20             _accountAmount = accountAmount;
+21         }
+22 
+23         public void Update(Object sender, CreditCard e)
+24         {
+25             _accountAmount += e.SpendAmount;
+26             Console.WriteLine("Account amount is {0}", _accountAmount);
+27         }
+28     }
+复制代码
+最后看一下客户端调用。
+
+
+复制代码
+1     static void Main(string[] args)
+2     {
+3         CreditCard creditCard = new CreditCard();
+4         SMSNotify sms = new SMSNotify();
+5         Account account = new Account(1000);
+6         creditCard.SpendMoney += account.Update;
+7         creditCard.SpendMoney += sms.Update;
+8         creditCard.SpendAmount = 200;
+9     } 
+复制代码
 
 
