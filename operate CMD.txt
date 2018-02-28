@@ -22,26 +22,26 @@ namespace ExecuteCMD
         {
             try
             {
-                //´´½¨Ò»¸ö½ø³Ì
+                //åˆ›å»ºä¸€ä¸ªè¿›ç¨‹
                 Process p = new Process();
                 p.StartInfo.FileName = "cmd.exe";
-                p.StartInfo.UseShellExecute = false;//ÊÇ·ñÊ¹ÓÃ²Ù×÷ÏµÍ³shellÆô¶¯
-                p.StartInfo.RedirectStandardInput = true;//½ÓÊÜÀ´×Ôµ÷ÓÃ³ÌÐòµÄÊäÈëÐÅÏ¢
-                p.StartInfo.RedirectStandardOutput = true;//ÓÉµ÷ÓÃ³ÌÐò»ñÈ¡Êä³öÐÅÏ¢
-                p.StartInfo.RedirectStandardError = true;//ÖØ¶¨Ïò±ê×¼´íÎóÊä³ö
-                p.StartInfo.CreateNoWindow = true;//²»ÏÔÊ¾³ÌÐò´°¿Ú
-                p.Start();//Æô¶¯³ÌÐò
+                p.StartInfo.UseShellExecute = false;//æ˜¯å¦ä½¿ç”¨æ“ä½œç³»ç»Ÿshellå¯åŠ¨
+                p.StartInfo.RedirectStandardInput = true;//æŽ¥å—æ¥è‡ªè°ƒç”¨ç¨‹åºçš„è¾“å…¥ä¿¡æ¯
+                p.StartInfo.RedirectStandardOutput = true;//ç”±è°ƒç”¨ç¨‹åºèŽ·å–è¾“å‡ºä¿¡æ¯
+                p.StartInfo.RedirectStandardError = true;//é‡å®šå‘æ ‡å‡†é”™è¯¯è¾“å‡º
+                p.StartInfo.CreateNoWindow = true;//ä¸æ˜¾ç¤ºç¨‹åºçª—å£
+                p.Start();//å¯åŠ¨ç¨‹åº
 
                 string strCMD = "\"" + @"C:\Program Files (x86)\Microsoft SDKs\Windows\v8.0A\bin\NETFX 4.0 Tools\SvcUtil.exe" + "\"  " + this.txt_URL.Text.ToString().Trim()
                     + " /r:"+"\""+@"C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.0\System.Data.dll" +"\""+ " /syncOnly";
-                //Ïòcmd´°¿Ú·¢ËÍÊäÈëÐÅÏ¢
+                //å‘cmdçª—å£å‘é€è¾“å…¥ä¿¡æ¯
                 p.StandardInput.WriteLine(strCMD + "&exit");
 
                 p.StandardInput.AutoFlush = true;
 
-                //»ñÈ¡cmd´°¿ÚµÄÊä³öÐÅÏ¢
+                //èŽ·å–cmdçª—å£çš„è¾“å‡ºä¿¡æ¯
                 string output = p.StandardOutput.ReadToEnd();
-                //µÈ´ý³ÌÐòÖ´ÐÐÍêÍË³ö½ø³Ì
+                //ç­‰å¾…ç¨‹åºæ‰§è¡Œå®Œé€€å‡ºè¿›ç¨‹
                 p.WaitForExit();
                 p.Close();
 
@@ -51,7 +51,7 @@ namespace ExecuteCMD
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message + "\r\n¸ú×Ù;" + ex.StackTrace);
+                MessageBox.Show(ex.Message + "\r\nè·Ÿè¸ª;" + ex.StackTrace);
             }
         }
     }
@@ -74,10 +74,20 @@ https://www.cnblogs.com/HQFZ/p/5731894.html
 https://stackoverflow.com/questions/25494344/building-c-sharp-solution-in-release-mode-using-msbuild-exe
 
 MSBuild is the build tool for Microsoft Visual Studio.  Developers use MSBuild to build a Visual Studio project or solution file from a command line, batch file, build tool, or automated script. 
-A new version of MSBuild.exe is included with each version of the .NET Framework stored in ¡°%WinDir%Microsoft.NETFramework¡± on your Windows PC.  The MSBuild.exe path depends on the .NET Framework version used to build your project.  Typically you will want to call the most recent version of MSBuild.exe installed on your computer:
+A new version of MSBuild.exe is included with each version of the .NET Framework stored in â€œ%WinDir%Microsoft.NETFrameworkâ€ on your Windows PC.  The MSBuild.exe path depends on the .NET Framework version used to build your project.  Typically you will want to call the most recent version of MSBuild.exe installed on your computer:
 .NET v2.0: 
 %WinDir%Microsoft.NETFrameworkv2.0.50727MSBuild.exe
 .NET v3.5: 
 %WinDir%Microsoft.NETFrameworkv3.5MSBuild.exe
 .NET v4.0: 
 %WinDir%Microsoft.NETFrameworkv4.0.30319MSBuild.exe
+
+
+@echo off
+echo å»ºç«‹æ—¥æœŸ %date%
+echo å»ºç«‹æ—¥æœŸ %date%>build.log
+"C:\Program Files\Microsoft Visual Studio 10.0\Common7\IDE\devenv.exe" è§£å†³æ–¹æ¡ˆå.sln  /project é¡¹ç›®åç§° /rebuild RELEASE /out output.log
+type output.log>>build.log
+echo å®Œæˆæž„å»º
+echo å®Œæˆæž„å»º>>build.log
+start notepad build.log
